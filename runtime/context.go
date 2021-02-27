@@ -41,7 +41,14 @@ var (
 	DefaultContextTimeout = 0 * time.Second
 )
 
+// KVPair represents a pair of key and value.
+type KVPair struct {
+	Key   interface{}
+	Value interface{}
+}
+
 type rpcMethodKey struct{}
+type httpPathKey struct{}
 
 func decodeBinHeader(v string) ([]byte, error) {
 	if len(v)%4 == 0 {
@@ -49,6 +56,14 @@ func decodeBinHeader(v string) ([]byte, error) {
 		return base64.StdEncoding.DecodeString(v)
 	}
 	return base64.RawStdEncoding.DecodeString(v)
+}
+
+// AnnotateContextWithOpaqueData adds opaque metadata into context.
+func AnnotateContextWithOpaqueData(ctx context.Context, pairs ...KVPair) context.Context {
+	for _, pair := range pairs {
+		ctx = context.WithValue(ctx, pair.Key, pair.Value)
+	}
+	return ctx
 }
 
 /*
@@ -310,4 +325,20 @@ func RPCMethod(ctx context.Context) (string, bool) {
 
 func withRPCMethod(ctx context.Context, rpcMethodName string) context.Context {
 	return context.WithValue(ctx, rpcMethodKey{}, rpcMethodName)
+}
+
+func NewHTTPPathPair(value string) KVPair {
+	return KVPair{Key: httpPathKey{}, Value: value}
+}
+
+func HTTPPath(ctx context.Context) (string, bool) {
+	m := ctx.Value(httpPathKey{})
+	if m == nil {
+		return "", false
+	}
+	ms, ok := m.(string)
+	if !ok {
+		return "", false
+	}
+	return ms, true
 }
